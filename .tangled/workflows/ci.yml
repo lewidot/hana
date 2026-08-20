@@ -6,12 +6,12 @@ when:
     branch: ["main"]
 
 engine: microvm
-image: almalinux10
+image: alpine
 
 steps:
   - name: "Install dependencies"
     command: |
-      sudo dnf install -y curl jq tar gzip
+      sudo apk add curl jq tar gzip gcompat
 
   - name: "Install Roc nightly"
     command: |
