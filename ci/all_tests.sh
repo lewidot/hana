@@ -11,6 +11,10 @@ roc check package/Hana.roc --main=package/main.roc
 echo "Checking examples..."
 roc check examples/hello.roc
 
+echo "Generating docs..."
+rm -rf generated-docs
+./scripts/docs.sh
+
 echo "Bundling Hana..."
 rm -rf dist
 ./scripts/bundle.sh
