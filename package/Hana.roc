@@ -2,44 +2,69 @@ import http.Response
 import http.Method
 
 Hana :: [].{
-	text : Str -> Response.Response
+
+	## Create a plain text response with status code 200: OK.
+	##
+	## The `content-type` header will be set to `text/plain; charset=utf-8`.
+	text : Str -> Response
 	text = |body| text_response(200, body)
 
-	text_response : U16, Str -> Response.Response
+	## Create a plain text response with the given status code.
+	##
+	## The `content-type` header will be set to `text/plain; charset=utf-8`.
+	text_response : U16, Str -> Response
 	text_response = |status, body|
 		Response.from_status(status)
 			.add_header("Content-Type", "text/plain; charset=utf-8")
 			.with_body(Str.to_utf8(body))
 
-	bad_request : Response.Response
+	## Create an empty response with status code 400: Bad request.
+	bad_request : Response
 	bad_request = Response.from_status(400)
 
-	not_found : Response.Response
+	## Create an empty response with status code 404: Not found.
+	not_found : Response
 	not_found = Response.from_status(404)
+
+	## Create an empty response with status code 501: Not implemented.
+	not_implemented : Response
+	not_implemented = Response.from_status(501)
 
 	## End the current handler with an intentional HTTP response.
 	##
 	## This is pure control flow. It does not stop the server.
+	halt : Response -> Try(ok, [Halt(Response), ..])
 	halt = |response|
 		Err(Halt(response))
 
-	## Extract routeable path segments from a basic-webserver request.
+	## Return the routable path segments of a basic-webserver request.
 	##
 	## CONNECT authority targets and OPTIONS * are not normal resource paths,
-	## so they produce an early 400 response.
+	## so an unsupported request ends with status code 501: Not implemented.
+	path :
+		request -> Try(List(Str), [Halt(Response), ..])
+			where [
+				request.target :
+					request
+						-> [
+							Asterisk,
+							Authority(authority),
+							Resource({ raw_path : Str, .. }),
+						],
+			]
 	path = |request|
 		match request.target() {
 			Resource({ raw_path, .. }) =>
 				Ok(path_segments(raw_path))
 
 			Authority(_) =>
-				halt(bad_request)
+				halt(not_implemented)
 
 			Asterisk =>
-				halt(bad_request)
+				halt(not_implemented)
 			}
 
-	## Split an absolute raw URI path into routeable segments.
+	## Return the segments of an absolute raw URI path.
 	##
 	## One leading and one trailing slash are ignored. Internal empty
 	## segments remain significant.
@@ -59,16 +84,22 @@ Hana :: [].{
 			}
 	}
 
-	## Catch any HEAD requests and make it so its handled to the GET handler.
-	routing_method : Method.Method -> Method.Method
+	## Convert a HEAD request method to GET.
+	##
+	## This allows an application to handle HEAD requests using its GET handlers.
+	routing_method : Method -> Method
 	routing_method = |method|
 		match method {
 			HEAD => GET
 			_ => method
 		}
 
-	## Response for when the HTTP method is not allowed.
-	method_not_allowed : List(Method.Method) -> Response.Response
+	## Create a response with status code 405: Method not allowed.
+	##
+	## Use this when a request does not have an appropriate method to be handled.
+	## The `allow` header will be set to a comma-separated list of the permitted
+	## methods.
+	method_not_allowed : List(Method) -> Response
 	method_not_allowed = |allowed| {
 		allow =
 			allowed
@@ -79,9 +110,10 @@ Hana :: [].{
 			.add_header("Allow", allow)
 	}
 
-	## Middleware that ensures the request has a specific HTTP method.
+	## Ensure that a request has one of the permitted HTTP methods.
 	##
-	## Returns an empty response with status code 405: Method not allowed.
+	## HEAD requests are checked as GET requests. If the method is not permitted,
+	## the handler ends with status code 405: Method not allowed.
 	require_method = |request, allowed| {
 		method = routing_method(request.method())
 
@@ -92,6 +124,8 @@ Hana :: [].{
 		}
 	}
 
+	## Resolve a result into a value, using the given function to handle errors.
+	resolve : Try(a, e), (e -> a) -> a
 	resolve = |result, handle_error|
 		match result {
 			Ok(response) =>
