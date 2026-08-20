@@ -11,7 +11,7 @@ image: alpine
 steps:
   - name: "Install dependencies"
     command: |
-      sudo apk add curl jq tar gzip gcompat
+      apk add curl jq tar gzip gcompat
 
   - name: "Install Roc nightly"
     command: |
