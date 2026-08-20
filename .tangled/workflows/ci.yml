@@ -1,0 +1,23 @@
+when:
+  - event: ["push", "manual"]
+    branch: ["main"]
+
+  - event: ["pull_request"]
+    branch: ["main"]
+
+engine: microvm
+image: almalinux10
+
+steps:
+  - name: "Install dependencies"
+    command: |
+      sudo dnf install -y curl jq tar gzip
+
+  - name: "Install Roc nightly"
+    command: |
+      ./ci/install-roc.sh
+
+  - name: "Check Hana"
+    command: |
+      export PATH="$PWD/.roc:$PATH"
+      ./ci/all_tests.sh
