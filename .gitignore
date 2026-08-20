@@ -2,3 +2,4 @@ examples/*
 !examples/*.roc
 .DS_Store
 generated-docs/
+.zig-cache
