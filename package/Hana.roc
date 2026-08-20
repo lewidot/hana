@@ -17,9 +17,6 @@ Hana :: [].{
 	not_found : Response.Response
 	not_found = Response.from_status(404)
 
-	with_status = |response, status|
-		response.with_status(status)
-
 	## End the current handler with an intentional HTTP response.
 	##
 	## This is pure control flow. It does not stop the server.
