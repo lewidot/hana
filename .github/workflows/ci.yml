@@ -13,10 +13,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  check:
+  ci:
     name: Check Hana
     runs-on: ubuntu-latest
-    timeout-minutes: 10
 
     steps:
       - name: Check out repository
@@ -30,11 +29,5 @@ jobs:
       - name: Show Roc version
         run: roc version
 
-      - name: Check formatting
-        run: roc fmt --check package examples
-
-      - name: Check Hana package
-        run: roc check package/Hana.roc --main=package/main.roc
-
-      - name: Check hello example
-        run: roc check examples/hello.roc
+      - name: Run checks
+        run: ./ci/all_tests.sh
