@@ -25,18 +25,28 @@ handle_error = |error|
 respond! : Server.Request, Context => Try(Server.Outcome, [ServerErr(Str), ..])
 respond! = |request, context|
 	routes!(request, context)
-		|> Hana.outcome(handle_error, Server.respond, Server.stream)
+		|> Hana.Route.resolve(handle_error)
+		|> Hana.Route.map_response(add_default_headers)
+		|> Hana.Route.to_outcome(Server.respond, Server.stream)
 		|> Ok
+
+add_default_headers = |response|
+	response.add_header("X-Content-Type-Options", "nosniff")
 
 routes! = |request, _context| {
 	path = Hana.path(request)?
 
 	match path {
-		[] => home(request)
-		["events"] => events!(request)
-		_ => Hana.response(Hana.not_found)
+		["events"] => events!(request) |> Hana.Route.event_stream
+		_ => response_routes(request, path) |> Hana.Route.response
 	}
 }
+
+response_routes = |request, path|
+	match path {
+		[] => home(request)
+		_ => Ok(Hana.not_found)
+	}
 
 home = |request| {
 	Hana.require_method(request, [GET])?
@@ -47,7 +57,7 @@ home = |request| {
 events! = |request| {
 	Hana.require_method(request, [GET])?
 
-	Hana.event_stream(Sse.unfold!(0, count_transition!))
+	Ok(Sse.unfold!(0, count_transition!))
 }
 
 count_transition! : U64 => Try(Sse.Step(U64), [StreamFailed(Str)])

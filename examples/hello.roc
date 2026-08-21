@@ -25,8 +25,13 @@ handle_error = |error|
 respond! : Server.Request, Context => Try(Server.Outcome, [ServerErr(Str), ..])
 respond! = |request, context|
 	routes(request, context)
-		|> Hana.outcome(handle_error, Server.respond, Server.stream)
+		|> Hana.resolve(handle_error)
+		|> add_default_headers
+		|> Server.respond
 		|> Ok
+
+add_default_headers = |response|
+	response.add_header("X-Content-Type-Options", "nosniff")
 
 routes = |request, _context| {
 	path = Hana.path(request)?
@@ -35,7 +40,9 @@ routes = |request, _context| {
 		[] => home(request)
 		["hello"] => hello(request)
 		["hello", name] => hello_name(request, name)
-		_ => Hana.response(Hana.not_found)
+		["html"] => html(request)
+		["json"] => json(request)
+		_ => Ok(Hana.not_found)
 	}
 }
 
@@ -47,6 +54,12 @@ home = |request| {
 
 hello = |_request|
 	Hana.text("Hello, world!")
+
+html = |_request|
+	Hana.html("<h1>Hello, world!</h1>")
+
+json = |_request|
+	Hana.json("{\"message\":\"Hello, world!\"}")
 
 hello_name = |_request, name|
 	match name {
