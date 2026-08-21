@@ -3,11 +3,11 @@ import http.Method
 
 Hana :: [].{
 
-	## Create a plain text response with status code 200: OK.
+	## Return a plain text response with status code 200: OK from a route handler.
 	##
 	## The `content-type` header will be set to `text/plain; charset=utf-8`.
-	text : Str -> Response
-	text = |body| text_response(200, body)
+	text : Str -> Try(Route(Response, stream), e)
+	text = |body| response(text_response(200, body))
 
 	## Create a plain text response with the given status code.
 	##
@@ -124,14 +124,26 @@ Hana :: [].{
 		}
 	}
 
-	## Resolve a result into a value, using the given function to handle errors.
-	resolve : Try(a, e), (e -> a) -> a
-	resolve = |result, handle_error|
-		match result {
-			Ok(response) =>
-				response
+	## A route result that is either an ordinary response or an event stream.
+	Route(response, stream) := [Response(response), EventStream(stream)]
 
-			Err(error) =>
-				handle_error(error)
-			}
+	## Return an ordinary response from a route handler.
+	response : response -> Try(Route(response, stream), e)
+	response = |value|
+		Ok(Response(value))
+
+	## Return an event stream from a route handler.
+	event_stream : stream -> Try(Route(response, stream), e)
+	event_stream = |value|
+		Ok(EventStream(value))
+
+	## Resolve a route result using the application's error handler and the
+	## platform's response functions.
+	outcome : Try(Route(response, stream), e), (e -> response), (response -> outcome), (stream -> outcome) -> outcome
+	outcome = |result, handle_error, respond, stream|
+		match result {
+			Ok(Response(value)) => respond(value)
+			Ok(EventStream(value)) => stream(value)
+			Err(error) => respond(handle_error(error))
+		}
 }
