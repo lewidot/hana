@@ -25,8 +25,7 @@ handle_error = |error|
 respond! : Server.Request, Context => Try(Server.Outcome, [ServerErr(Str), ..])
 respond! = |request, context|
 	routes(request, context)
-		|> Hana.resolve(handle_error)
-		|> Server.respond
+		|> Hana.outcome(handle_error, Server.respond, Server.stream)
 		|> Ok
 
 routes = |request, _context| {
@@ -36,22 +35,21 @@ routes = |request, _context| {
 		[] => home(request)
 		["hello"] => hello(request)
 		["hello", name] => hello_name(request, name)
-		_ => Hana.halt(Hana.not_found)
+		_ => Hana.response(Hana.not_found)
 	}
 }
 
 home = |request| {
 	Hana.require_method(request, [GET])?
 
-	Ok(Hana.text("Hello from Hana!"))
+	Hana.text("Hello from Hana!")
 }
 
 hello = |_request|
-	Ok(Hana.text("Hello, world!"))
+	Hana.text("Hello, world!")
 
 hello_name = |_request, name|
-	if name == "hana" {
-		Err(InvalidName(name))
-	} else {
-		Ok(Hana.text("Hello, ${name}!"))
+	match name {
+		"hana" => Err(InvalidName(name))
+		_ => Hana.text("Hello, ${name}!")
 	}
