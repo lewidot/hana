@@ -213,6 +213,16 @@ Hana :: [].{
 			Err(error) => handle_error(error)
 		}
 
+	## Write a compact development log line and preserve the response.
+	##
+	## Pass a platform writer such as `Stderr.line!`. Writer errors are ignored
+	## so logging cannot change the response. Use the server's access logger when
+	## transport completion, byte counts, or production logging are required.
+	dev_log! = |response_value, request, write!| {
+		write_dev_log!(response_value.status().to_str(), request, write!)
+		response_value
+	}
+
 	## Opt-in composition for handlers that return ordinary responses and event
 	## streams. Response-only applications do not need this type.
 	Route(stream) := [Response(Response), EventStream(stream)].{
@@ -249,6 +259,21 @@ Hana :: [].{
 				EventStream(stream_value) => EventStream(stream_value)
 			}
 
+		## Write a compact development log line and preserve the mixed route.
+		##
+		## Event streams are logged as selected, not when their transport finishes.
+		dev_log! = |route, request, write!| {
+			label =
+				fold(
+					route,
+					|response_value| response_value.status().to_str(),
+					|_| "SSE",
+				)
+
+			write_dev_log!(label, request, write!)
+			route
+		}
+
 		## Fold an ordinary response or event stream into one value.
 		fold : Route(stream), (Response -> result), (stream -> result) -> result
 		fold = |route, respond, stream|
@@ -262,4 +287,16 @@ Hana :: [].{
 		to_outcome = |route, respond, stream|
 			fold(route, respond, stream)
 	}
+}
+
+write_dev_log! = |label, request, write!| {
+	target =
+		match request.target() {
+			Resource({ raw_path, .. }) => raw_path
+			Authority(_) => "<authority>"
+			Asterisk => "*"
+		}
+
+	method = Method.to_str(request.method())
+	write!("${label} ${method} ${target}") ?? {}
 }

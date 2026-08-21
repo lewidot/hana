@@ -4,6 +4,7 @@ app [Context, program] {
 }
 
 import pf.Server
+import pf.Stderr
 import hana.Hana
 
 Context : {}
@@ -27,6 +28,7 @@ respond! = |request, context|
 	routes(request, context)
 		|> Hana.resolve(handle_error)
 		|> add_default_headers
+		|> Hana.dev_log!(request, Stderr.line!)
 		|> Server.respond
 		|> Ok
 

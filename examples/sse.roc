@@ -5,6 +5,7 @@ app [Context, program] {
 
 import pf.Server
 import pf.Sse
+import pf.Stderr
 import hana.Hana
 
 Context : {}
@@ -27,6 +28,7 @@ respond! = |request, context|
 	routes!(request, context)
 		|> Hana.Route.resolve(handle_error)
 		|> Hana.Route.map_response(add_default_headers)
+		|> Hana.Route.dev_log!(request, Stderr.line!)
 		|> Hana.Route.to_outcome(Server.respond, Server.stream)
 		|> Ok
 
