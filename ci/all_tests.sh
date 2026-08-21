@@ -10,6 +10,7 @@ roc check package/Hana.roc --main=package/main.roc
 
 echo "Checking examples..."
 roc check examples/hello.roc
+roc check examples/sse.roc
 
 echo "Generating docs..."
 rm -rf generated-docs
